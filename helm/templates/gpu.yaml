@@ -1,0 +1,53 @@
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: {{ include "sdchart.fullname" . }}-gpu
+  labels:
+  {{- include "sdchart.labels" . | nindent 4 }}
+spec:
+  consolidation:
+    enabled: true
+  limits:
+    resources:
+      gpu: 100
+  providerRef:
+    name: gpu
+  requirements:
+  - key: karpenter.sh/capacity-type
+    operator: In
+    values:
+    - spot
+    - on-demand
+  - key: node.kubernetes.io/instance-type
+    operator: In
+    values:
+    - g5.2xlarge
+  taints:
+  - effect: NoSchedule
+    key: nvidia.com/gpu
+---
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: {{ include "sdchart.fullname" . }}-gpu
+  labels:
+  {{- include "sdchart.labels" . | nindent 4 }}
+spec:
+  amiFamily: AL2
+  amiSelector:
+    aws::ids: ami-00a267b1ecf2ea971
+  blockDeviceMappings:
+  - deviceName: /dev/xvda
+    ebs:
+      deleteOnTermination: true
+      iops: 4000
+      throughput: 1000
+      volumeSize: 200Gi
+      volumeType: gp3
+  securityGroupSelector:
+    kubernetes.io/cluster/eksClusterStack: owned
+  subnetSelector:
+    Name: SdOnEksDataPlaneSandbox/eksClusterStack/eksClusterStack-vpc/PrivateSubnet*
+  userData: |
+    #!/bin/bash
+    time s5cmd cp --concurrency 20 "s3://sd-on-eks-pdx/*" /tmp/models/

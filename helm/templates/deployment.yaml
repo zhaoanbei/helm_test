@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sdchart.fullname" . }}-sd-webui-inference-api
+  labels:
+  {{- include "sdchart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.sdWebuiInferenceApi.replicas }}
+  selector:
+    matchLabels:
+      app: sd-webui-inference-api
+    {{- include "sdchart.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: sd-webui-inference-api
+      {{- include "sdchart.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - env:
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        image: {{ .Values.sdWebuiInferenceApi.sdWebuiInferenceApi.image.repository }}:{{
+          .Values.sdWebuiInferenceApi.sdWebuiInferenceApi.image.tag | default .Chart.AppVersion
+          }}
+        name: sd-webui-inference-api
+        resources: {{- toYaml .Values.sdWebuiInferenceApi.sdWebuiInferenceApi.resources
+          | nindent 10 }}
+        volumeMounts:
+        - mountPath: /tmp/models
+          name: models
+      - env:
+        - name: AWS_REGION
+          value: {{ quote .Values.sdWebuiInferenceApi.sdWebuiQueueAgent.env.awsRegion }}
+        - name: SQS_QUEUE_URL
+          value: {{ quote .Values.sdWebuiInferenceApi.sdWebuiQueueAgent.env.sqsQueueUrl
+            }}
+        - name: S3_BUCKET
+          value: {{ quote .Values.sdWebuiInferenceApi.sdWebuiQueueAgent.env.s3Bucket }}
+        - name: SNS_TOPIC_ARN
+          value: {{ quote .Values.sdWebuiInferenceApi.sdWebuiQueueAgent.env.snsTopicArn
+            }}
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        image: {{ .Values.sdWebuiInferenceApi.sdWebuiQueueAgent.image.repository }}:{{
+          .Values.sdWebuiInferenceApi.sdWebuiQueueAgent.image.tag | default .Chart.AppVersion
+          }}
+        name: sd-webui-queue-agent
+        resources: {}
+      serviceAccountName: {{ .Values.sdWebuiInferenceApi.serviceAccountName }}
+      terminationGracePeriodSeconds: 0
+      tolerations:
+      - effect: NoSchedule
+        key: nvidia.com/gpu
+        operator: Exists
+      volumes:
+      - hostPath:
+          path: /tmp/models
+        name: models

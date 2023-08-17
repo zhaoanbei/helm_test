@@ -1,0 +1,34 @@
+kubernetesClusterDomain: cluster.local
+nvidiaDevicePluginDaemonset:
+  nvidiaDevicePluginCtr:
+    args:
+    - --fail-on-init-error=false
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+    image:
+      repository: nvcr.io/nvidia/k8s-device-plugin
+      tag: v0.9.0
+sdWebuiInferenceApi:
+  serviceAccountName: sd-webui-sa
+  replicas: 0
+  sdWebuiInferenceApi:
+    image:
+      repository: 373534280245.dkr.ecr.us-west-2.amazonaws.com/stable-diffusion-webui/inference-api
+      tag: latest
+    resources:
+      limits:
+        nvidia.com/gpu: "1"
+      requests:
+        nvidia.com/gpu: "1"
+  sdWebuiQueueAgent:
+    env:
+      awsRegion: us-west-2
+      s3Bucket: sdoneksdataplanesandbox-eksclustersdoutputpdx31c2-2e684zsv4h1n
+      snsTopicArn: arn:aws:sns:us-west-2:057313215210:SdOnEksDataPlaneSandbox-eksClustersdnotificationpdx1BF5B43B-D0FaamuF2rIt
+      sqsQueueUrl: https://sqs.us-west-2.amazonaws.com/057313215210/SdOnEksDataPlaneSandbox-eksClusterInputQueue19310EEB5-yK9YLbLTv5rI
+    image:
+      repository: 057313215210.dkr.ecr.us-west-2.amazonaws.com/stable-diffusion-webui/queue-agent
+      tag: latest

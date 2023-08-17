@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "sdchart.fullname" . }}-nvidia-device-plugin-daemonset
+  labels:
+  {{- include "sdchart.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      name: nvidia-device-plugin-ds
+    {{- include "sdchart.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        name: nvidia-device-plugin-ds
+      {{- include "sdchart.selectorLabels" . | nindent 8 }}
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ""
+    spec:
+      containers:
+      - args: {{- toYaml .Values.nvidiaDevicePluginDaemonset.nvidiaDevicePluginCtr.args
+          | nindent 8 }}
+        env:
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        image: {{ .Values.nvidiaDevicePluginDaemonset.nvidiaDevicePluginCtr.image.repository
+          }}:{{ .Values.nvidiaDevicePluginDaemonset.nvidiaDevicePluginCtr.image.tag | default
+          .Chart.AppVersion }}
+        name: nvidia-device-plugin-ctr
+        resources: {}
+        securityContext: {{- toYaml .Values.nvidiaDevicePluginDaemonset.nvidiaDevicePluginCtr.containerSecurityContext
+          | nindent 10 }}
+        volumeMounts:
+        - mountPath: /var/lib/kubelet/device-plugins
+          name: device-plugin
+      priorityClassName: system-node-critical
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - effect: NoSchedule
+        key: nvidia.com/gpu
+        operator: Exists
+      volumes:
+      - hostPath:
+          path: /var/lib/kubelet/device-plugins
+        name: device-plugin
